@@ -11,6 +11,7 @@
 
 # Clue: You could consider the user's budget
 
+
 class Usuario:
     def __init__(self):
         self.preferencia_epoca = None
@@ -18,7 +19,7 @@ class Usuario:
         self.preferencia_actividades = None
 
     def validar_entrada(self, valor, opciones):
-        return valor in [opcion for opcion in opciones]
+        return any(opcion.lower() in valor.lower() for opcion in opciones)
 
     def pedir_temporada(self):
         while True:
@@ -79,23 +80,67 @@ class Agencia:
 
     def determinar_destino(self, temporada, presupuesto, actividad):
         destinos_temporada = self.destinos.get(temporada, {})
-        destinos_posibles = []
+        destinos_posibles_temporada = []
+        destinos_preferido = []
 
         for pais, actividades_disponibles in destinos_temporada.items():
             precio = self.precios.get(temporada, 0)
-            if precio <= presupuesto and actividad in actividades_disponibles:
-                destinos_posibles.append((pais, precio))
+            
+            if actividad in actividades_disponibles and precio <= presupuesto:
+                destinos_preferido.append(
+                    {
+                        "Pais": pais,
+                        "Temporada": temporada,
+                        "Actividad": actividades_disponibles,
+                        "Precio": precio
+                    }
+                )
+            elif precio <= presupuesto:
+                destinos_posibles_temporada.append(
+                    {
+                        "Temporada": temporada,
+                        "Pais": pais,
+                        "Actividad": actividades_disponibles,
+                        "Precio": precio
+                    }
+                )
 
-        if not destinos_posibles:
-            return "Lo siento, no hay destinos disponibles dentro de tu presupuesto en esta temporada y con la actividad seleccionada."
+        mensaje_destino = ""
 
-        # Ordenar destinos por precio ascendente
-        destinos_posibles.sort(key=lambda x: x[1])
+        if destinos_preferido:
+            print(f"\n-----Destinos coincidentes dentro de un presupuesto de ${presupuesto}-----")
+            for i, datos in enumerate(destinos_preferido, start=1):
+                mensaje_destino += f"\nTemporada: {datos['Temporada']}\nPais: {datos['Pais']}\nPrecio: ${datos['Precio']}\nActividades: {', '.join(datos['Actividad'])}."
+        elif destinos_posibles_temporada:
+            print(f"\n-----Destinos en {temporada} dentro de un presupuesto de ${presupuesto}-----")
+            for i, datos in enumerate(destinos_posibles_temporada, start=1):
+                mensaje_destino += f"\nPais: {datos['Pais']}\nPrecio: ${datos['Precio']}\nActividades: {', '.join(datos['Actividad'])}."
 
-        mejor_destino = destinos_posibles[0]
-        return f"Tu mejor destino para {temporada} con un presupuesto de ${presupuesto} es: {mejor_destino[0]} con un precio de ${mejor_destino[1]}."
+        if not destinos_preferido:
+            # Buscar destinos en otras temporadas con la actividad deseada
+            destinos_en_otras_temporadas = []
 
+            for otra_temporada, destinos_otra_temporada in self.destinos.items():
+                if otra_temporada != temporada:
+                    for pais_otra_temporada, actividades_otra_temporada in destinos_otra_temporada.items():
+                        precio_otra_temporada = self.precios.get(otra_temporada, 0)
+                        if precio_otra_temporada <= presupuesto and actividad in actividades_otra_temporada:
+                            destinos_en_otras_temporadas.append(
+                                {
+                                    "Pais": pais_otra_temporada,
+                                    "Temporada": otra_temporada,
+                                    "Actividad": actividades_otra_temporada,
+                                    "Precio": precio_otra_temporada
+                                }
+                            )
 
+            if destinos_en_otras_temporadas:
+                for i, datos in enumerate(destinos_en_otras_temporadas, start=1):
+                    mensaje_destino += f"\nNo hay destinos disponibles para {actividad} en {temporada} dentro de tu presupuesto. Sin embargo, puedes considerar {datos['Pais']} en {datos['Temporada']}. Precio: ${datos['Precio']}. Podrás disfrutar de las siguientes actividades: {', '.join(datos['Actividad'])}."
+            else:
+                mensaje_destino = f"\nNo hay destinos disponibles para {actividad} en {temporada} dentro de tu presupuesto."
+
+        return mensaje_destino
 
 
 def main():
@@ -106,7 +151,7 @@ def main():
     if usuario.pedir_temporada() and usuario.pedir_presupuesto() and usuario.pedir_actividad():
         agencia = Agencia()
         destino_recomendado = agencia.determinar_destino(usuario.preferencia_epoca, usuario.presupuesto, usuario.preferencia_actividades)
-        print(f"Tu mejor destino para {usuario.preferencia_epoca} con un presupuesto de ${usuario.presupuesto} es: {destino_recomendado}")
+        print(destino_recomendado)
 
 if __name__ == "__main__":
     main()
